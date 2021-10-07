@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,9 @@ const (
 	taskClose    = updQuery + "/close"
 
 	requestTimeLimit = time.Second * 15
+
+	delOpt = "del"
+	addOpt = "add"
 )
 
 var (
@@ -37,6 +41,8 @@ var (
 	errRequestForm = errors.New("request is invalid")
 	errRequestPerf = errors.New("error with perform request")
 	errModelValid  = errors.New("invalid model")
+	errSdk         = errors.New("SDK error")
+	errOptional    = errors.New("invalid optional updating the bankId")
 )
 
 type Agent struct {
@@ -63,6 +69,21 @@ func ValidateMethod(method string) bool {
 	return strings.Contains(MethodBank, method)
 }
 
+var MappingStatusCode = map[string]int{
+	"json":       200,
+	"no-content": 204,
+}
+
+//fucking validate
+func ValidateStatusCode(code int) bool {
+	for _, cd := range MappingStatusCode {
+		if code == cd {
+			return true
+		}
+	}
+	return false
+}
+
 func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, reqBody interface{}) (*http.Response, error) {
 	//validate rout
 	if rout == "" {
@@ -81,19 +102,31 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	//				GET-PUT-DELETE
 	//request body is url-encoded
 	//data sends in url-query params
-	reqBody, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, errJsonMarshal
+
+	var jsonBody []byte
+
+	//validate reqBody on nillable
+	if reqBody == nil {
+		jsonBody = nil
+	} else {
+		v, err := json.Marshal(reqBody)
+		if err != nil {
+			return nil, errJsonMarshal
+		}
+		jsonBody = v
 	}
 
 	//creating the request
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, host+projectsUrl, bytes.NewBuffer(nil))
+	req, err := http.NewRequestWithContext(ctx, method, rout, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, errRequestForm
 	}
 
 	//authorization
 	req.Header.Set("Authorization", "Bearer "+ag.token)
+
+	//format-encoding
+	req.Header.Set("Content-Type", "application/json; charset=UTF8")
 
 	//perform request
 	resp, err := ag.heart.Do(req)
@@ -102,8 +135,9 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	}
 
 	//validate response body
-	if code := resp.StatusCode; code != http.StatusOK {
-		return nil, errors.New("SDK eror: " + strconv.Itoa(code))
+
+	if !ValidateStatusCode(resp.StatusCode) {
+		return nil, errors.New("SDK error: " + strconv.Itoa(resp.StatusCode))
 	}
 
 	return resp, nil
@@ -178,4 +212,80 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 	}
 
 	return storage, nil
+}
+
+//make rout to api by id: project/id for url-encode
+func makeIdRout(id int, url string) string {
+	return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id))
+}
+
+//Slice contains id of projects
+var BankIdProject []int
+
+//Update bankId method
+func UpdateBankIdProject(opt string, val int) error {
+	if !(opt == delOpt || opt != addOpt) {
+		return errOptional
+	}
+
+	switch opt {
+	case delOpt:
+
+		var (
+			stB []string
+			res []int
+		)
+
+		for _, v := range BankIdProject {
+			stB = append(stB, strconv.Itoa(v))
+		}
+
+		st := strings.Join(stB, " ")
+		rs := strings.Replace(st, strconv.Itoa(val), "", 1)
+		bank := strings.Split(rs, " ")
+
+		for _, v := range bank {
+			num, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+			res = append(res, num)
+		}
+
+		BankIdProject = res
+	case addOpt:
+		BankIdProject = append(BankIdProject, val)
+	}
+
+	return nil
+}
+
+func (ag *Agent) SiftBankIdProject(ctx context.Context) error {
+	res, err := ag.GetAllProjects(ctx)
+	if res != nil {
+		for _, v := range *res {
+			BankIdProject = append(BankIdProject, v.Id)
+			return err
+		}
+	} else {
+		return err
+	}
+
+	if err != nil {
+		return errors.New("error with getting Projects - " + err.Error())
+	}
+
+	sort.Ints(BankIdProject)
+
+	return nil
+}
+
+//validate existing id in bankId
+func ValidateIdProjects(id int) bool {
+	sort.Ints(BankIdProject)
+	if idx := sort.SearchInts(BankIdProject, id); BankIdProject[idx] != id {
+		return false
+	} else {
+		return true
+	}
 }
