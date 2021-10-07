@@ -57,7 +57,11 @@ func NewAgent(tokenApi string) (*Agent, error) {
 	}, nil
 }
 
-var MethodBank string = fmt.Sprintf(http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut)
+var MethodBank string = fmt.Sprintf("%s-%s-%s-%s", http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut)
+
+func ValidateMethod(method string) bool {
+	return strings.Contains(MethodBank, method)
+}
 
 func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, reqBody interface{}) (*http.Response, error) {
 	//validate rout
@@ -66,7 +70,7 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	}
 
 	//validate method
-	if method == "" || !strings.Contains(MethodBank, method) {
+	if method == "" || !ValidateMethod(method) {
 		return nil, errMethod
 	}
 
@@ -96,8 +100,6 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	if err != nil {
 		return nil, errRequestPerf
 	}
-
-	defer resp.Body.Close()
 
 	//validate response body
 	if code := resp.StatusCode; code != http.StatusOK {
@@ -138,6 +140,7 @@ func RePointer(bank []*interface{}) []interface{} {
 	return store
 }
 
+//parse response to model
 func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, error) {
 	if valid := ValidateModel(model); !valid {
 		return nil, errModelValid
@@ -145,15 +148,6 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 
 	//mapping interface to model and init bank
 	inp := ModelMapping(model)
-	/*
-		switch _ := inp.(type) {
-		case Project:
-			var storage []Project
-		case Section:
-			var storage []Section
-		case Task:
-			var storage []Task
-		} */
 
 	//bank for struct
 	var (
@@ -161,6 +155,7 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 		storage []interface{}
 	)
 
+	defer resp.Body.Close()
 	//response to []interface{}
 	dec := json.NewDecoder(resp.Body)
 	err := dec.Decode(&input)
@@ -168,7 +163,7 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 		return nil, fmt.Errorf("%s - [%s]", "error with decoding input", err.Error())
 	}
 
-	//convert []interface}{} to map
+	//convert []interface{} to map
 	//decode map to struct
 	//add storage of struct
 	for _, part := range input {

@@ -15,5 +15,10 @@ func main() {
 
 	ctx := context.Background()
 
-	agent.AddProject(ctx, "")
+	res, err := agent.GetAllProjects(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Println(res)
 }
