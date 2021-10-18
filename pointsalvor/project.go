@@ -2,18 +2,13 @@ package pointsalvor
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 )
 
 const (
 	pModel = "project"
-	sModel = "section"
-	tModel = "task"
-)
-
-var (
-	errInvalidName = errors.New("invalid name of model")
 )
 
 type Project struct {
@@ -33,9 +28,14 @@ type namedProgect struct {
 	Name string `json:"name"`
 }
 
+//make rout to api by id: project/id for url-encode
+func makeIdRout(id int, url string) string {
+	return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id))
+}
+
 func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) {
 	if name == "" {
-		return nil, errInvalidName
+		return nil, errInvalidNameModel
 	}
 
 	resp, err := ag.KnockToApi(ctx, http.MethodPost, host+projectsUrl, namedProgect{Name: name})
@@ -44,25 +44,20 @@ func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) 
 	}
 	defer resp.Body.Close()
 
-	store, err := DecodeResponseToModels(resp, pModel)
+	model, err := DecodeResponseToModel(resp, pModel)
 	if err != nil {
 		return nil, err
 	}
 
-	res, ok := store[0].(Project)
+	res, ok := model.(Project)
 	if !ok {
-		return nil, errors.New("error with convert interface to - " + pModel)
-	}
-
-	err = UpdateBankIdProject(addOpt, res.Id)
-	if err != nil {
-		return nil, errors.New("errors with updating bankId - " + err.Error())
+		return nil, fmt.Errorf("error with switch type")
 	}
 
 	return &res, nil
 }
 
-func (ag *Agent) GetAllProjects(ctx context.Context) (*[]Project, error) {
+func (ag *Agent) GetAllProjects(ctx context.Context) ([]Project, error) {
 	var input []Project
 
 	resp, err := ag.KnockToApi(ctx, http.MethodGet, host+projectsUrl, nil)
@@ -78,7 +73,7 @@ func (ag *Agent) GetAllProjects(ctx context.Context) (*[]Project, error) {
 	for _, v := range store {
 		res, ok := v.(Project)
 		if !ok {
-			return nil, errors.New("error with convert interface to - " + pModel)
+			return nil, errConvertTo(pModel)
 		}
 
 		input = append(input, res)
@@ -86,12 +81,12 @@ func (ag *Agent) GetAllProjects(ctx context.Context) (*[]Project, error) {
 
 	//ag.SiftBankIdProject(ctx)
 
-	return &input, nil
+	return input, nil
 }
 
 func (ag *Agent) RenameProject(ctx context.Context, id int, rename string) error {
 	if rename == "" {
-		return errInvalidName
+		return errInvalidNameModel
 	}
 
 	resp, err := ag.KnockToApi(ctx, http.MethodPost, makeIdRout(id, projectsUrl), namedProgect{Name: rename})
@@ -104,6 +99,11 @@ func (ag *Agent) RenameProject(ctx context.Context, id int, rename string) error
 }
 
 func (ag *Agent) DeleteProject(ctx context.Context, id int) error {
+	resp, err := ag.KnockToApi(ctx, http.MethodDelete, makeIdRout(id, projectsUrl), nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
 	return nil
 }

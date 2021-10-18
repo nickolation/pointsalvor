@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,13 +19,10 @@ const (
 	host = "https://api.todoist.com/rest/v1"
 
 	tasksUrl    = "/tasks"
-	sectionsUrl = "/sections"
 	projectsUrl = "/projects"
 
-	sectionQuery = "/projects_id=%s"
-	taskQuery    = sectionQuery + "&section_id=%s"
-	updQuery     = "/%s"
-	taskClose    = updQuery + "/close"
+	updQuery  = "/%s"
+	taskClose = updQuery + "/close"
 
 	requestTimeLimit = time.Second * 15
 
@@ -35,14 +31,30 @@ const (
 )
 
 var (
-	errUrl         = errors.New("url request is empty")
-	errMethod      = errors.New("method is invalid")
-	errJsonMarshal = errors.New("eror with marshal request body")
-	errRequestForm = errors.New("request is invalid")
-	errRequestPerf = errors.New("error with perform request")
-	errModelValid  = errors.New("invalid model")
-	errSdk         = errors.New("SDK error")
-	errOptional    = errors.New("invalid optional updating the bankId")
+	errUrl              = errors.New("url request is empty")
+	errMethod           = errors.New("method is invalid")
+	errJsonMarshal      = errors.New("eror with marshal request body")
+	errRequestForm      = errors.New("request is invalid")
+	errRequestPerf      = errors.New("error with perform request")
+	errModelValid       = errors.New("invalid model")
+	errOptional         = errors.New("invalid optional updating the bankId")
+	errInvalidNameModel = fmt.Errorf("invalid name of model - empty")
+
+	errDecodeIf = func(e error) error {
+		return fmt.Errorf("error with decoding interface - [%v]", e)
+	}
+
+	errDecodeMap = func(e error) error {
+		return fmt.Errorf("error with decoding map - [%v]", e)
+	}
+
+	errConvertTo = func(s string) error {
+		return fmt.Errorf("invalid convertation to interface - [%s]", s)
+	}
+
+	errKnockTo = func(e error) error {
+		return fmt.Errorf("invalid knock to api - [%v]", e)
+	}
 )
 
 type Agent struct {
@@ -63,10 +75,20 @@ func NewAgent(tokenApi string) (*Agent, error) {
 	}, nil
 }
 
-var MethodBank string = fmt.Sprintf("%s-%s-%s-%s", http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut)
+var MappingMethod = map[string]string{
+	"get":  http.MethodGet,
+	"post": http.MethodPost,
+	"del":  http.MethodDelete,
+}
 
 func ValidateMethod(method string) bool {
-	return strings.Contains(MethodBank, method)
+	for _, meth := range MappingMethod {
+		if meth == method {
+			return true
+		}
+	}
+
+	return false
 }
 
 var MappingStatusCode = map[string]int{
@@ -91,7 +113,7 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	}
 
 	//validate method
-	if method == "" || !ValidateMethod(method) {
+	if !ValidateMethod(method) {
 		return nil, errMethod
 	}
 
@@ -126,7 +148,9 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	req.Header.Set("Authorization", "Bearer "+ag.token)
 
 	//format-encoding
-	req.Header.Set("Content-Type", "application/json; charset=UTF8")
+	if reqBody != nil {
+		req.Header.Set("Content-Type", "application/json; charset=UTF8")
+	}
 
 	//perform request
 	resp, err := ag.heart.Do(req)
@@ -134,21 +158,31 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 		return nil, errRequestPerf
 	}
 
-	//validate response body
-
-	if !ValidateStatusCode(resp.StatusCode) {
-		return nil, errors.New("SDK error: " + strconv.Itoa(resp.StatusCode))
-	}
-
 	return resp, nil
 }
 
+const (
+	pCode uint16 = 0 + iota
+	sCode
+	tCode
+)
+
 //bank of models
-var ModelBank string = fmt.Sprintf("%s-%s-%s", "project", "section", "task")
+var ModelCodes = map[uint16]string{
+	pCode: "project",
+	sCode: "section",
+	tCode: "task",
+}
 
 //validate models on exist
 func ValidateModel(model string) bool {
-	return strings.Contains(ModelBank, model)
+	for _, mod := range ModelCodes {
+		if mod == model {
+			return true
+		}
+	}
+
+	return false
 }
 
 //model-string map
@@ -174,7 +208,40 @@ func RePointer(bank []*interface{}) []interface{} {
 	return store
 }
 
-//parse response to model
+func DecodeResponseToModel(resp *http.Response, model string) (interface{}, error) {
+	if valid := ValidateModel(model); !valid {
+		return nil, errModelValid
+	}
+
+	//mapping interface to model and init bank
+	inp := ModelMapping(model)
+
+	//bank for struct
+	var input interface{}
+
+	defer resp.Body.Close()
+	//response to []interface{}
+	dec := json.NewDecoder(resp.Body)
+	err := dec.Decode(&input)
+	if err != nil {
+		return nil, errDecodeIf(err)
+	}
+
+	//convert []interface{} to map
+	//decode map to struct
+	//add storage of struct
+	res, ok := input.(map[string]interface{})
+	if ok {
+		err = mapstructure.Decode(res, &inp)
+		if err != nil {
+			return nil, errDecodeMap(err)
+		}
+	}
+
+	return inp, nil
+}
+
+//parse response to models
 func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, error) {
 	if valid := ValidateModel(model); !valid {
 		return nil, errModelValid
@@ -194,7 +261,7 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 	dec := json.NewDecoder(resp.Body)
 	err := dec.Decode(&input)
 	if err != nil {
-		return nil, fmt.Errorf("%s - [%s]", "error with decoding input", err.Error())
+		return nil, errDecodeIf(err)
 	}
 
 	//convert []interface{} to map
@@ -205,18 +272,13 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 		if ok {
 			err = mapstructure.Decode(res, &inp)
 			if err != nil {
-				return nil, fmt.Errorf("%s - [%s]", "error with decoding map to struct", err.Error())
+				return nil, errDecodeMap(err)
 			}
 			storage = append(storage, inp)
 		}
 	}
 
 	return storage, nil
-}
-
-//make rout to api by id: project/id for url-encode
-func makeIdRout(id int, url string) string {
-	return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id))
 }
 
 //Slice contains id of projects
@@ -260,6 +322,7 @@ func UpdateBankIdProject(opt string, val int) error {
 	return nil
 }
 
+/*
 func (ag *Agent) SiftBankIdProject(ctx context.Context) error {
 	res, err := ag.GetAllProjects(ctx)
 	if res != nil {
@@ -289,3 +352,4 @@ func ValidateIdProjects(id int) bool {
 		return true
 	}
 }
+*/

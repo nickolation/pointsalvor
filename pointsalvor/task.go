@@ -17,6 +17,11 @@ type Task struct {
 	Url           string
 }
 
+const (
+	tModel = "task"
+	taskQuery = sectionQuery + "&section_id=%s"
+)
+
 type TaskData struct {
 	Project_id, Section_id int
 	Content, Due_string    string
