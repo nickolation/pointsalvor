@@ -1,4 +1,4 @@
-module github.com/nickolation/pointsalvor
+module github.com/nickolation/pointsalvor-sdk
 
 go 1.17
 
