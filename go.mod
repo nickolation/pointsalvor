@@ -1,5 +1,5 @@
-module github.com/nickolation/pointsalvor-sdk
+module github.com/nickolation/pointsalvor
 
 go 1.17
 
-require github.com/mitchellh/mapstructure v1.4.2
+require github.com/mitchellh/mapstructure v1.4.2 // indirect
