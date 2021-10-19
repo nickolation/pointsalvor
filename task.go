@@ -9,19 +9,20 @@ import (
 	"strconv"
 )
 
+//Task entity struct used by model in methods
 type Task struct {
-	Id            int
-	Project_id    int
-	Section_id    int
-	Parent_id     int
-	Content       string
-	Description   string
-	Comment_count byte
-	Assignee      int
-	Assigner      int
-	Order         byte
-	Priority      byte
-	Url           string
+	Id            int    `json:"id"`
+	Project_id    int    `json:"project_id"`
+	Section_id    int    `json:"section_id"`
+	Parent_id     int    `json:"parent_id"`
+	Content       string `json:"content"`
+	Description   string `json:"description"`
+	Comment_count byte   `json:"comment_count"`
+	Assignee      int    `json:"assignee"`
+	Assigner      int    `json:"assigner"`
+	Order         byte   `json:"order"`
+	Priority      byte   `json:"prority"`
+	Url           string `json:"url"`
 }
 
 const (
@@ -96,6 +97,7 @@ func ValidateTaskOpt(opt NewTaskOpt) (interface{}, bool) {
 }
 
 //Create task to todoist-client by opt-struct
+//Require section_id and content fields
 func (ag *Agent) AddTask(ctx context.Context, opt NewTaskOpt) (*Task, error) {
 	reqBody, ok := ValidateTaskOpt(opt)
 	if !ok {
@@ -158,7 +160,8 @@ func makeUrlDirectly(opt GetTaskOpt) (string, error) {
 	return "", nil
 }
 
-//Get all tasks in todoist-client by params
+//Get all tasks in todoist-client by opt-struct
+//Require id of direct [project/section]
 func (ag *Agent) GetAllTasks(ctx context.Context, opt GetTaskOpt) (*[]Task, error) {
 	var input []Task
 
@@ -200,7 +203,7 @@ func makeUrlDelete(id int) (string, bool) {
 	return "", false
 }
 
-//Make task done
+//Make task done by task id
 func (ag *Agent) CloseTask(ctx context.Context, id int) error {
 	rout, ok := makeUrlDelete(id)
 	if !ok {

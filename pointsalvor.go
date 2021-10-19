@@ -1,7 +1,6 @@
 package pointsalvor
 
 import (
-	//"context"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -54,11 +53,13 @@ type namedModel struct {
 	Name string `json:"name"`
 }
 
+//Opt-struct used by opt-param in methods
 type NamedIdOpt struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 }
 
+//Validation opt-struct on correct fields with creating ulr-rout fro KnockToApi method 
 func validateNamedIdOpt(opt NamedIdOpt, url string) (string, error) {
 	var addr int
 
@@ -77,30 +78,36 @@ func validateNamedIdOpt(opt NamedIdOpt, url string) (string, error) {
 	return r, nil
 }
 
+//Main object provides functional of methods working with todoist-api
 type Agent struct {
-	heart *http.Client
-	token string
+	Engine *http.Client
+	Token string
 }
 
+//Create new agent object used by performing sdk-methods to todoist-api
+//Required token-api is located in integration-settings of toodist-client in todoist-app
+//Contains http.Client struct with 15 second timeout of request-response and mock-testing functional
 func NewAgent(tokenApi string) (*Agent, error) {
 	if tokenApi == "" {
 		return nil, errors.New("tokenApi is empty")
 	}
 
 	return &Agent{
-		heart: &http.Client{
+		Engine: &http.Client{
 			Timeout: requestTimeLimit,
 		},
-		token: tokenApi,
+		Token: tokenApi,
 	}, nil
 }
 
+//Map of string-methods and http.Methods used for validataion 
 var MappingMethod = map[string]string{
 	"get":  http.MethodGet,
 	"post": http.MethodPost,
 	"del":  http.MethodDelete,
 }
 
+//Validate method string on asserting to used http.Methods
 func ValidateMethod(method string) bool {
 	for _, meth := range MappingMethod {
 		if meth == method {
@@ -111,7 +118,7 @@ func ValidateMethod(method string) bool {
 	return false
 }
 
-//make rout to api by id: project/id for url-encode
+//Make rout to api by id: project/id for url-encode
 func makeIdRout(id int, url string) (string, bool) {
 	if id != 0 {
 		return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id)), true
@@ -120,12 +127,13 @@ func makeIdRout(id int, url string) (string, bool) {
 	return "", false
 }
 
+//Map encode-type and statusCode for correct response results
 var MappingStatusCode = map[string]int{
 	"json":       200,
 	"no-content": 204,
 }
 
-//fucking validate
+//Validate status code on correct httpStatusCode returned with http.Response
 func ValidateStatusCode(code int) bool {
 	for _, cd := range MappingStatusCode {
 		if code == cd {
@@ -135,6 +143,9 @@ func ValidateStatusCode(code int) bool {
 	return false
 }
 
+//Main method for send http-requests to toodist-api 
+//Requires httpMethod, rout url, reqBody with need-type encoding (json/url-encode)
+//Returns response used by Decode method and resp.StatusCode validation 
 func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, reqBody interface{}) (*http.Response, error) {
 	//validate rout
 	if rout == "" {
@@ -174,7 +185,7 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	}
 
 	//authorization
-	req.Header.Set("Authorization", "Bearer "+ag.token)
+	req.Header.Set("Authorization", "Bearer "+ag.Token)
 
 	//format-encoding
 	if reqBody != nil {
@@ -182,7 +193,7 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	}
 
 	//perform request
-	resp, err := ag.heart.Do(req)
+	resp, err := ag.Engine.Do(req)
 	if err != nil {
 		return nil, errRequestPerf
 	}
@@ -190,20 +201,21 @@ func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, req
 	return resp, nil
 }
 
+//custom codes used by keys in model-codes struct
 const (
 	pCode uint16 = 0 + iota
 	sCode
 	tCode
 )
 
-//bank of models
+//bank of models for validation model in DecodeResponseToModel
 var ModelCodes = map[uint16]string{
 	pCode: "project",
 	sCode: "section",
 	tCode: "task",
 }
 
-//validate models on exist
+//validate models on existance
 func ValidateModel(model string) bool {
 	for _, mod := range ModelCodes {
 		if mod == model {
@@ -228,15 +240,13 @@ func ModelMapping(model string) interface{} {
 	return nil
 }
 
-func RePointer(bank []*interface{}) []interface{} {
-	var store []interface{}
-	for _, v := range bank {
-		store = append(store, *v)
-	}
+//Muldi-models
+//Decode http.Response to model struct
+//Decoding schema: http.Response -> map[string]inteface{} -> model
 
-	return store
-}
-
+//One-model decoding
+//Decode http.Response to model struct
+//Decoding schema: http.Response -> map[string]inteface{} -> model
 func DecodeResponseToModel(resp *http.Response, model string) (interface{}, error) {
 	if valid := ValidateModel(model); !valid {
 		return nil, errModelValid
@@ -270,7 +280,9 @@ func DecodeResponseToModel(resp *http.Response, model string) (interface{}, erro
 	return inp, nil
 }
 
-//parse response to models
+//Muldi-models decoding
+//Decode http.Response to model struct
+//Decoding schema: http.Response -> map[string]inteface{} -> model
 func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, error) {
 	if valid := ValidateModel(model); !valid {
 		return nil, errModelValid
@@ -286,6 +298,7 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 	)
 
 	defer resp.Body.Close()
+
 	//response to []interface{}
 	dec := json.NewDecoder(resp.Body)
 	err := dec.Decode(&input)
@@ -309,40 +322,3 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 
 	return storage, nil
 }
-
-//Slice contains id of projects
-var BankIdProject []int
-
-//Update bankId method
-
-/*
-func (ag *Agent) SiftBankIdProject(ctx context.Context) error {
-	res, err := ag.GetAllProjects(ctx)
-	if res != nil {
-		for _, v := range *res {
-			BankIdProject = append(BankIdProject, v.Id)
-			return err
-		}
-	} else {
-		return err
-	}
-
-	if err != nil {
-		return errors.New("error with getting Projects - " + err.Error())
-	}
-
-	sort.Ints(BankIdProject)
-
-	return nil
-}
-
-//validate existing id in bankId
-func ValidateIdProjects(id int) bool {
-	sort.Ints(BankIdProject)
-	if idx := sort.SearchInts(BankIdProject, id); BankIdProject[idx] != id {
-		return false
-	} else {
-		return true
-	}
-}
-*/

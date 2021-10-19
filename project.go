@@ -11,19 +11,21 @@ const (
 	pModel = "project"
 )
 
+//Project entity struct used by model in methods
 type Project struct {
-	Id            int
-	Name          string
-	Comment_count int
-	Order         int
-	Color         int
-	Shared        bool
-	Sync_id       int
-	Favorite      bool
-	Inbox_project bool
-	Url           string
+	Id            int    `json:"id"`
+	Name          string `json:"name"`
+	Comment_count int    `json:"comment_count"`
+	Order         int    `json:"order"`
+	Color         int    `json:"color"`
+	Shared        bool   `json:"shared"`
+	Sync_id       int    `json:"sync_id"`
+	Favorite      bool   `json:"favorite"`
+	Inbox_project bool   `json:"inbox_project"`
+	Url           string `json:"url"`
 }
 
+//Make project in todoist-client
 func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) {
 	if name == "" {
 		return nil, errInvalidNameModel
@@ -47,7 +49,8 @@ func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) 
 	return &res, nil
 }
 
-func (ag *Agent) GetAllProjects(ctx context.Context) ([]Project, error) {
+//Get all project in client
+func (ag *Agent) GetAllProjects(ctx context.Context) (*[]Project, error) {
 	var input []Project
 
 	resp, err := ag.KnockToApi(ctx, http.MethodGet, host+projectsUrl, nil)
@@ -69,11 +72,10 @@ func (ag *Agent) GetAllProjects(ctx context.Context) ([]Project, error) {
 		input = append(input, res)
 	}
 
-	//ag.SiftBankIdProject(ctx)
-
-	return input, nil
+	return &input, nil
 }
 
+//Rename project with opt-struct by id-project and name
 func (ag *Agent) RenameProject(ctx context.Context, opt NamedIdOpt) error {
 	rout, err := validateNamedIdOpt(opt, projectsUrl)
 	if err != nil {
@@ -90,6 +92,7 @@ func (ag *Agent) RenameProject(ctx context.Context, opt NamedIdOpt) error {
 	return nil
 }
 
+//Delete project by id
 func (ag *Agent) DeleteProject(ctx context.Context, id int) error {
 	rout, ok := makeIdRout(id, projectsUrl)
 	if !ok {
