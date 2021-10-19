@@ -9,25 +9,17 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 const (
-	host = "https://api.todoist.com/rest/v1"
-
-	tasksUrl    = "/tasks"
+	host        = "https://api.todoist.com/rest/v1"
 	projectsUrl = "/projects"
 
-	updQuery  = "/%s"
-	taskClose = updQuery + "/close"
-
+	updQuery         = "/%s"
 	requestTimeLimit = time.Second * 15
-
-	delOpt = "del"
-	addOpt = "add"
 )
 
 var (
@@ -37,8 +29,8 @@ var (
 	errRequestForm      = errors.New("request is invalid")
 	errRequestPerf      = errors.New("error with perform request")
 	errModelValid       = errors.New("invalid model")
-	errOptional         = errors.New("invalid optional updating the bankId")
 	errInvalidNameModel = fmt.Errorf("invalid name of model - empty")
+	errSwitchType       = fmt.Errorf("error with switch type")
 
 	errDecodeIf = func(e error) error {
 		return fmt.Errorf("error with decoding interface - [%v]", e)
@@ -56,6 +48,34 @@ var (
 		return fmt.Errorf("invalid knock to api - [%v]", e)
 	}
 )
+
+//struct for rename-param in update-methods: renameModel(rename)
+type namedModel struct {
+	Name string `json:"name"`
+}
+
+type NamedIdOpt struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func validateNamedIdOpt(opt NamedIdOpt, url string) (string, error) {
+	var addr int
+
+	if opt.Name == "" {
+		return "", errInvalidNameModel
+	}
+
+	if id := opt.Id; id != 0 {
+		addr = id
+	} else {
+		return "", errInvalidId
+	}
+
+	r, _ := makeIdRout(addr, url)
+
+	return r, nil
+}
 
 type Agent struct {
 	heart *http.Client
@@ -89,6 +109,15 @@ func ValidateMethod(method string) bool {
 	}
 
 	return false
+}
+
+//make rout to api by id: project/id for url-encode
+func makeIdRout(id int, url string) (string, bool) {
+	if id != 0 {
+		return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id)), true
+	}
+
+	return "", false
 }
 
 var MappingStatusCode = map[string]int{
@@ -285,42 +314,6 @@ func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, e
 var BankIdProject []int
 
 //Update bankId method
-func UpdateBankIdProject(opt string, val int) error {
-	if !(opt == delOpt || opt != addOpt) {
-		return errOptional
-	}
-
-	switch opt {
-	case delOpt:
-
-		var (
-			stB []string
-			res []int
-		)
-
-		for _, v := range BankIdProject {
-			stB = append(stB, strconv.Itoa(v))
-		}
-
-		st := strings.Join(stB, " ")
-		rs := strings.Replace(st, strconv.Itoa(val), "", 1)
-		bank := strings.Split(rs, " ")
-
-		for _, v := range bank {
-			num, err := strconv.Atoi(v)
-			if err != nil {
-				return err
-			}
-			res = append(res, num)
-		}
-
-		BankIdProject = res
-	case addOpt:
-		BankIdProject = append(BankIdProject, val)
-	}
-
-	return nil
-}
 
 /*
 func (ag *Agent) SiftBankIdProject(ctx context.Context) error {

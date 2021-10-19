@@ -3,8 +3,8 @@ package pointsalvor
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
 )
 
 const (
@@ -24,25 +24,15 @@ type Project struct {
 	Url           string
 }
 
-type namedProgect struct {
-	Name string `json:"name"`
-}
-
-//make rout to api by id: project/id for url-encode
-func makeIdRout(id int, url string) string {
-	return host + url + fmt.Sprintf(updQuery, strconv.Itoa(id))
-}
-
 func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) {
 	if name == "" {
 		return nil, errInvalidNameModel
 	}
 
-	resp, err := ag.KnockToApi(ctx, http.MethodPost, host+projectsUrl, namedProgect{Name: name})
+	resp, err := ag.KnockToApi(ctx, http.MethodPost, host+projectsUrl, namedModel{Name: name})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	model, err := DecodeResponseToModel(resp, pModel)
 	if err != nil {
@@ -84,12 +74,14 @@ func (ag *Agent) GetAllProjects(ctx context.Context) ([]Project, error) {
 	return input, nil
 }
 
-func (ag *Agent) RenameProject(ctx context.Context, id int, rename string) error {
-	if rename == "" {
-		return errInvalidNameModel
+func (ag *Agent) RenameProject(ctx context.Context, opt NamedIdOpt) error {
+	rout, err := validateNamedIdOpt(opt, projectsUrl)
+	if err != nil {
+		return err
 	}
+	log.Printf("Rout: [%s]", rout)
 
-	resp, err := ag.KnockToApi(ctx, http.MethodPost, makeIdRout(id, projectsUrl), namedProgect{Name: rename})
+	resp, err := ag.KnockToApi(ctx, http.MethodPost, rout, namedModel{Name: opt.Name})
 	if err != nil {
 		return err
 	}
@@ -99,7 +91,13 @@ func (ag *Agent) RenameProject(ctx context.Context, id int, rename string) error
 }
 
 func (ag *Agent) DeleteProject(ctx context.Context, id int) error {
-	resp, err := ag.KnockToApi(ctx, http.MethodDelete, makeIdRout(id, projectsUrl), nil)
+	rout, ok := makeIdRout(id, projectsUrl)
+	if !ok {
+		return errInvalidId
+	}
+	log.Printf("Rout: [%s]", rout)
+
+	resp, err := ag.KnockToApi(ctx, http.MethodDelete, rout, nil)
 	if err != nil {
 		return err
 	}

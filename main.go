@@ -8,8 +8,9 @@ import (
 
 func main() {
 	//create new agent with token-api: api-token
-	agent, err := pointsalvor.NewAgent("<token-api>")
+	agent, err := pointsalvor.NewAgent("<api-token>")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+
 }

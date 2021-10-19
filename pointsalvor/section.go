@@ -3,18 +3,15 @@ package pointsalvor
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
-)
-
-var (
-	errSwitch = fmt.Errorf("error with switch type")
 )
 
 const (
 	sModel       = "section"
 	sectionsUrl  = "/sections"
-	sectionQuery = "?project_id=%s"
+	projectQuery = "?project_id=%s"
 )
 
 type Section struct {
@@ -24,14 +21,23 @@ type Section struct {
 	Name       string `json:"name"`
 }
 
-func makeQueryRout(id int) string {
-	return host + sectionsUrl + fmt.Sprintf(sectionQuery, strconv.Itoa(id))
+func makeQueryRout(id int) (string, bool) {
+	if id != 0 {
+		return host + sectionsUrl + fmt.Sprintf(projectQuery, strconv.Itoa(id)), true
+	}
+	return "", false
 }
 
 func (ag *Agent) GetAllSections(ctx context.Context, id int) (*[]Section, error) {
 	var input []Section
 
-	resp, err := ag.KnockToApi(ctx, http.MethodGet, makeQueryRout(id), nil)
+	rout, ok := makeQueryRout(id)
+	if !ok {
+		return nil, errInvalidId
+	}
+	log.Printf("Rout: [%s]", rout)
+
+	resp, err := ag.KnockToApi(ctx, http.MethodGet, rout, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,20 +59,29 @@ func (ag *Agent) GetAllSections(ctx context.Context, id int) (*[]Section, error)
 	return &input, nil
 }
 
-type inputSection struct {
+type NewSectionOpt struct {
 	Project_id int    `json:"project_id"`
 	Name       string `json:"name"`
 }
 
-func (ag *Agent) AddSection(ctx context.Context, name string, projId int) (*Section, error) {
-	if name == "" {
-		return nil, errInvalidNameModel
+func validateSectionOpt(opt NewSectionOpt) error {
+	if opt.Name == "" {
+		return errInvalidNameModel
 	}
 
-	resp, err := ag.KnockToApi(ctx, http.MethodPost, host+sectionsUrl, inputSection{
-		Project_id: projId,
-		Name:       name,
-	})
+	if opt.Project_id == 0 {
+		return errInvalidId
+	}
+
+	return nil
+}
+
+func (ag *Agent) AddSection(ctx context.Context, opt NewSectionOpt) (*Section, error) {
+	if err := validateSectionOpt(opt); err != nil {
+		return nil, err
+	}
+
+	resp, err := ag.KnockToApi(ctx, http.MethodPost, host+sectionsUrl, opt)
 
 	if err != nil {
 		return nil, errKnockTo(err)
@@ -79,16 +94,43 @@ func (ag *Agent) AddSection(ctx context.Context, name string, projId int) (*Sect
 
 	res, ok := model.(Section)
 	if !ok {
-		return nil, errSwitch
+		return nil, errSwitchType
 	}
 
 	return &res, nil
 }
 
-func (ag *Agent) RenameSection(ctx context.Context, name string) (Section, error) {
-	return Section{}, nil
+func (ag *Agent) RenameSection(ctx context.Context, opt NamedIdOpt) error {
+	rout, err := validateNamedIdOpt(opt, sectionsUrl)
+	if err != nil {
+		return err
+	}
+	log.Printf("Rout: [%s]", rout)
+
+	resp, err := ag.KnockToApi(ctx, http.MethodPost, rout, namedModel{
+		Name: opt.Name,
+	})
+
+	if err != nil {
+		return errKnockTo(err)
+	}
+	defer resp.Body.Close()
+
+	return nil
 }
 
-func (ag *Agent) DeleteSection(ctx context.Context, name string) (Section, error) {
-	return Section{}, nil
+func (ag *Agent) DeleteSection(ctx context.Context, id int) error {
+	rout, ok := makeIdRout(id, sectionsUrl)
+	if !ok {
+		return errInvalidId
+	}
+	log.Printf("Rout: [%s]", rout)
+
+	resp, err := ag.KnockToApi(ctx, http.MethodDelete, rout, nil)
+	if err != nil {
+		return errKnockTo(err)
+	}
+	defer resp.Body.Close()
+
+	return nil
 }
