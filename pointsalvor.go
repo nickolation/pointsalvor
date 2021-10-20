@@ -226,7 +226,7 @@ func ValidateModel(model string) bool {
 	return false
 }
 
-//model-string map
+//model-string map for decoding http.Response to model
 func ModelMapping(model string) interface{} {
 	switch model {
 	case "project":
