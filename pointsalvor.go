@@ -21,33 +21,6 @@ const (
 	requestTimeLimit = time.Second * 15
 )
 
-var (
-	errUrl              = errors.New("url request is empty")
-	errMethod           = errors.New("method is invalid")
-	errJsonMarshal      = errors.New("eror with marshal request body")
-	errRequestForm      = errors.New("request is invalid")
-	errRequestPerf      = errors.New("error with perform request")
-	errModelValid       = errors.New("invalid model")
-	errInvalidNameModel = fmt.Errorf("invalid name of model - empty")
-	errSwitchType       = fmt.Errorf("error with switch type")
-
-	errDecodeIf = func(e error) error {
-		return fmt.Errorf("error with decoding interface - [%v]", e)
-	}
-
-	errDecodeMap = func(e error) error {
-		return fmt.Errorf("error with decoding map - [%v]", e)
-	}
-
-	errConvertTo = func(s string) error {
-		return fmt.Errorf("invalid convertation to interface - [%s]", s)
-	}
-
-	errKnockTo = func(e error) error {
-		return fmt.Errorf("invalid knock to api - [%v]", e)
-	}
-)
-
 //struct for rename-param in update-methods: renameModel(rename)
 type namedModel struct {
 	Name string `json:"name"`
@@ -59,7 +32,7 @@ type NamedIdOpt struct {
 	Name string `json:"name"`
 }
 
-//Validation opt-struct on correct fields with creating ulr-rout fro KnockToApi method 
+//Validation opt-struct on correct fields with creating ulr-rout fro KnockToApi method
 func validateNamedIdOpt(opt NamedIdOpt, url string) (string, error) {
 	var addr int
 
@@ -81,7 +54,7 @@ func validateNamedIdOpt(opt NamedIdOpt, url string) (string, error) {
 //Main object provides functional of methods working with todoist-api
 type Agent struct {
 	Engine *http.Client
-	Token string
+	Token  string
 }
 
 //Create new agent object used by performing sdk-methods to todoist-api
@@ -100,7 +73,7 @@ func NewAgent(tokenApi string) (*Agent, error) {
 	}, nil
 }
 
-//Map of string-methods and http.Methods used for validataion 
+//Map of string-methods and http.Methods used for validataion
 var MappingMethod = map[string]string{
 	"get":  http.MethodGet,
 	"post": http.MethodPost,
@@ -143,9 +116,9 @@ func ValidateStatusCode(code int) bool {
 	return false
 }
 
-//Main method for send http-requests to toodist-api 
+//Main method for send http-requests to toodist-api
 //Requires httpMethod, rout url, reqBody with need-type encoding (json/url-encode)
-//Returns response used by Decode method and resp.StatusCode validation 
+//Returns response used by Decode method and resp.StatusCode validation
 func (ag *Agent) KnockToApi(ctx context.Context, method string, rout string, reqBody interface{}) (*http.Response, error) {
 	//validate rout
 	if rout == "" {
