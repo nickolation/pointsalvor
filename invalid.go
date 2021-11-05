@@ -8,6 +8,7 @@ import (
 //custom erorrs for validate and performing methods
 //Persistant error is simple string with text description of problem
 //errTO type error is function with custom description and native golang-error
+
 var (
 	errUrl              = errors.New("url request is empty")
 	errMethod           = errors.New("method is invalid")
