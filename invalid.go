@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-//custom erorrs for validate and performing methods
+//Custom erorrs for validate and performing methods
 //Persistant error is simple string with text description of problem
 //errTO type error is function with custom description and native golang-error
 
