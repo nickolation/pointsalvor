@@ -73,6 +73,7 @@ func NewAgent(tokenApi string) (*Agent, error) {
 	}, nil
 }
 
+//overhead
 //Map of string-methods and http.Methods used for validataion
 var MappingMethod = map[string]string{
 	"get":  http.MethodGet,
@@ -80,6 +81,7 @@ var MappingMethod = map[string]string{
 	"del":  http.MethodDelete,
 }
 
+//overhead
 //Validate method string on asserting to used http.Methods
 func ValidateMethod(method string) bool {
 	for _, meth := range MappingMethod {
@@ -100,12 +102,14 @@ func makeIdRout(id int, url string) (string, bool) {
 	return "", false
 }
 
+//overhead
 //Map encode-type and statusCode for correct response results
 var MappingStatusCode = map[string]int{
 	"json":       200,
 	"no-content": 204,
 }
 
+//overhead
 //Validate status code on correct httpStatusCode returned with http.Response
 func ValidateStatusCode(code int) bool {
 	for _, cd := range MappingStatusCode {
@@ -181,6 +185,7 @@ const (
 	tCode
 )
 
+//overhead
 //bank of models for validation model in DecodeResponseToModel
 var ModelCodes = map[uint16]string{
 	pCode: "project",
@@ -188,6 +193,7 @@ var ModelCodes = map[uint16]string{
 	tCode: "task",
 }
 
+//overhead
 //validate models on existance
 func ValidateModel(model string) bool {
 	for _, mod := range ModelCodes {
@@ -199,6 +205,7 @@ func ValidateModel(model string) bool {
 	return false
 }
 
+//+- overhead
 //model-string map for decoding http.Response to model
 func ModelMapping(model string) interface{} {
 	switch model {
@@ -253,7 +260,7 @@ func DecodeResponseToModel(resp *http.Response, model string) (interface{}, erro
 	return inp, nil
 }
 
-//Muldi-models decoding
+//Multi-models decoding
 //Decode http.Response to model struct
 //Decoding schema: http.Response -> map[string]inteface{} -> model
 func DecodeResponseToModels(resp *http.Response, model string) ([]interface{}, error) {

@@ -25,6 +25,8 @@ type Task struct {
 	Url           string `json:"url"`
 }
 
+//	constant - struct
+//	overhead
 const (
 	tModel       = "task"
 	sectionQuery = "?section_id=%s"
@@ -32,6 +34,7 @@ const (
 	tasksUrl  = "/tasks"
 	taskClose = updQuery + "/close"
 
+	// same constant in other packages
 	sectDir = "section"
 	projDir = "project"
 )
@@ -44,6 +47,8 @@ var (
 
 //Struct used by params-request body
 //Being enttite of AddTask method
+
+//	Strange name
 type NewTaskOpt struct {
 	Section_id int    `json:"section_id"`
 	Content    string `json:"content"`
@@ -169,6 +174,8 @@ func (ag *Agent) GetAllTasks(ctx context.Context, opt GetTaskOpt) (*[]Task, erro
 	if err != nil {
 		return nil, errInvalidDirect
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodGet, rout, nil)

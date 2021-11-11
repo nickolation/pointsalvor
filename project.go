@@ -7,6 +7,8 @@ import (
 	"net/http"
 )
 
+//	constant value in other struct
+//	overhead
 const (
 	pModel = "project"
 )
@@ -43,6 +45,8 @@ func (ag *Agent) AddProject(ctx context.Context, name string) (*Project, error) 
 
 	res, ok := model.(Project)
 	if !ok {
+		//	unvariable custom error
+		//	strange
 		return nil, fmt.Errorf("error with switch type")
 	}
 
@@ -81,6 +85,8 @@ func (ag *Agent) RenameProject(ctx context.Context, opt NamedIdOpt) error {
 	if err != nil {
 		return err
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodPost, rout, namedModel{Name: opt.Name})
@@ -98,6 +104,8 @@ func (ag *Agent) DeleteProject(ctx context.Context, id int) error {
 	if !ok {
 		return errInvalidId
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodDelete, rout, nil)

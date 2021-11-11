@@ -8,12 +8,13 @@ import (
 	"strconv"
 )
 
+//	constant - struct
+//	overhead
 const (
 	sModel       = "section"
 	sectionsUrl  = "/sections"
 	projectQuery = "?project_id=%s"
 )
-
 
 //Section entity struct used by model in methods
 type Section struct {
@@ -40,6 +41,8 @@ func (ag *Agent) GetAllSections(ctx context.Context, id int) (*[]Section, error)
 	if !ok {
 		return nil, errInvalidId
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodGet, rout, nil)
@@ -64,8 +67,10 @@ func (ag *Agent) GetAllSections(ctx context.Context, id int) (*[]Section, error)
 	return &input, nil
 }
 
-//Struct-opt for AddSection-method 
+//Struct-opt for AddSection-method
 //Validates on value of name/id
+
+//	strange name
 type NewSectionOpt struct {
 	Project_id int    `json:"project_id"`
 	Name       string `json:"name"`
@@ -109,12 +114,14 @@ func (ag *Agent) AddSection(ctx context.Context, opt NewSectionOpt) (*Section, e
 	return &res, nil
 }
 
-//Rename goal section by opt-struct with id-section and new name 
+//Rename goal section by opt-struct with id-section and new name
 func (ag *Agent) RenameSection(ctx context.Context, opt NamedIdOpt) error {
 	rout, err := validateNamedIdOpt(opt, sectionsUrl)
 	if err != nil {
 		return err
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodPost, rout, namedModel{
@@ -129,12 +136,14 @@ func (ag *Agent) RenameSection(ctx context.Context, opt NamedIdOpt) error {
 	return nil
 }
 
-//Delete existing section by id 
+//Delete existing section by id
 func (ag *Agent) DeleteSection(ctx context.Context, id int) error {
 	rout, ok := makeIdRout(id, sectionsUrl)
 	if !ok {
 		return errInvalidId
 	}
+
+	//	optional log
 	log.Printf("Rout: [%s]", rout)
 
 	resp, err := ag.KnockToApi(ctx, http.MethodDelete, rout, nil)
