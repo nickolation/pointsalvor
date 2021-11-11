@@ -16,9 +16,11 @@ var (
 	errRequestForm      = errors.New("request is invalid")
 	errRequestPerf      = errors.New("error with perform request")
 	errModelValid       = errors.New("invalid model")
-	errInvalidNameModel = fmt.Errorf("invalid name of model - empty")
-	errSwitchType       = fmt.Errorf("error with switch type")
+	errInvalidNameModel = errors.New("invalid name of model - empty")
+	errSwitchType       = errors.New("error with switch type")
 
+	//anonym-func for error production
+	//	strange?
 	errDecodeIf = func(e error) error {
 		return fmt.Errorf("error with decoding interface - [%v]", e)
 	}
