@@ -73,6 +73,16 @@ func NewAgent(tokenApi string) (*Agent, error) {
 	}, nil
 }
 
+//makes new pointsalvor-agent with token is need to use sdk-method
+func LinkAgent(token string) (*Agent, error) {
+	ag, err := NewAgent(token)
+	if err != nil {
+		return nil, err
+	}
+
+	return ag, nil
+}
+
 //overhead
 //Map of string-methods and http.Methods used for validataion
 var MappingMethod = map[string]string{
